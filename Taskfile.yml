@@ -1,0 +1,20 @@
+version: '3'
+
+tasks:
+  default:
+    aliases: [ci]
+    cmds:
+      - task: ci
+
+  ci:
+    desc: Format, lint, check, and test
+    cmds:
+      - cargo fmt --check
+      - cargo clippy --all-targets --locked -- -D warnings
+      - cargo check --all-targets --locked
+      - cargo test --locked
+
+  build:release:
+    desc: Build the SCP stdio server
+    cmds:
+      - cargo build --release --locked
