@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::provenance::ModelProvenance;
 
 /// Optional scientific context supplied by an SCP workflow.
-#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct ExperimentContextInput {
     /// Stable experiment identifier supplied by the caller. A UUID URN is generated when omitted.
     #[serde(default)]
@@ -24,7 +24,7 @@ pub struct ExperimentContextInput {
 }
 
 /// Resolved context attached to every scientific result.
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct ExperimentContext {
     pub experiment_id: String,
     pub run_id: Option<String>,
@@ -45,7 +45,7 @@ impl ExperimentContextInput {
 }
 
 /// One SCP scientific workflow entry point: fit a model from a server-local CSV dataset.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ScpFitModelRequest {
     /// Persistent experiment context for lifecycle and provenance correlation.
     #[serde(default)]

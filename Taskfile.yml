@@ -18,3 +18,9 @@ tasks:
     desc: Build the SCP stdio server
     cmds:
       - cargo build --release --locked
+
+  preflight:
+    desc: Rust validation and dependency audit
+    cmds:
+      - task: ci
+      - cargo audit

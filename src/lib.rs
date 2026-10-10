@@ -7,6 +7,10 @@
 mod mapping;
 mod provenance;
 mod server;
+mod transport;
+mod workflow;
+
+pub use workflow::*;
 
 pub use mapping::{
     ExperimentContext, ExperimentContextInput, FittedModelResource, ScpFitModelRequest,

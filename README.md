@@ -1,104 +1,166 @@
 # lme-rs-scp
 
-Thin [Science Context Protocol (SCP)](https://github.com/InternScience/scp) server adapter
-for [lme-rs](https://github.com/x4g4p3x/lme-rs) mixed-effects models.
+Rust [Science Context Protocol](https://github.com/InternScience/scp) adapter for
+[lme-rs](https://github.com/x4g4p3x/lme-rs), built on the published
+[lme-rs-agent](https://github.com/x4g4p3x/lme-rs-agent) shared core.
 
-This initial harness exposes one representative scientific workflow:
-
-```text
-SCP fit_model request
-        |
-        v
-   LmeAgentApi             shared validation and session semantics
-        |
-        v
-      lme-rs               statistical engine
-        |
-        v
-fitted-model resource + experiment context + provenance
-```
-
-It deliberately does not duplicate the full MCP tool catalog. The first boundary to prove
-is how a fitted model and its source data become a reusable, traceable scientific result.
-
-## Architecture
+The adapter exposes scientific workflows over SCP's MCP-compatible stdio contract:
 
 ```text
-                    lme-rs
-                       ^
-                       |
-                lme-rs-agent
-               /            \
-              ^              ^
-       lme-rs-mcp       lme-rs-scp
+fit_model -> assess_model -> infer_marginals -> export_experiment
+     |            |               |
+     +------------+---------------+-> retrievable resources + linked provenance
 ```
 
-The official SCP Python SDK currently implements edge servers with the MCP-compatible
-JSON-RPC tool/resource contract and supports stdio and SSE transports. This Rust harness
-uses that compatible tool contract over stdio. Hub registration, authentication, SSE, and
-persistent external storage are intentionally later integration steps.
+Statistical algorithms stay in lme-rs. This release uses lme-rs-agent 0.2.0 and the
+published lme-rs 0.2.6 engine. The executable requires no Python. The compatibility
+test uses the official Python SCP client at a pinned revision.
 
-## Current workflow
-
-The only tool is `fit_model`. It accepts:
-
-- optional `context` (`experiment_id`, `run_id`, `objective`);
-- `model_kind` (`lm`, `lmm`, `glmm`, or `nlmm`);
-- formula and server-local CSV `data_path`;
-- model-family-specific REML, family/link, AGQ, and start options.
-
-The result contains:
-
-- resolved experiment context;
-- an `lme-rs://fits/<fit_id>` model resource and structured `FitSummary`;
-- adapter and engine versions;
-- the canonical dataset path, byte length, media type, and SHA-256 digest;
-- effective model configuration, convergence, observation count, and activity timestamps.
-
-The shared agent core currently pins `lme-rs 0.2.2`; that exact engine version is recorded
-in every provenance envelope.
-
-Model handles are process-local in this harness. A persistent SCP resource store is not yet
-implemented.
-
-## Run
-
-Until `lme-rs-agent 0.1.0` is published, source builds require sibling checkouts:
-
-```text
-parent/
-├─ lme-rs-agent/
-└─ lme-rs-scp/
-```
+## Install and run
 
 ```powershell
-cargo build --release --locked
+cargo install lme-rs-scp --version 0.2.0 --locked
 $env:LME_DATA_ROOT = "C:\path\to\csv-data"
-target\release\lme-rs-scp.exe
+lme-rs-scp
 ```
 
-The process speaks newline-delimited JSON-RPC over stdin/stdout. `LME_DATA_ROOT` is
-recommended: relative paths resolve below it and canonicalized paths outside it are rejected.
+The process speaks newline-delimited JSON-RPC on stdin/stdout. Configure an SCP/MCP
+stdio client to spawn it. Relative CSV paths resolve under LME_DATA_ROOT; canonical
+paths outside that root are rejected. LME_MCP_DATA_ROOT remains a compatibility alias.
 
-Run the direct envelope example with:
+Source builds use registry dependencies and require no sibling checkout:
+
+```powershell
+git clone https://github.com/x4g4p3x/lme-rs-scp.git
+cd lme-rs-scp
+cargo build --release --locked
+```
+
+## Workflow
+
+### Fit a model
+
+The existing fit_model request/result shape is preserved, with additional shared-core
+version provenance. LM/LMM/GLMM/built-in NLMM use the same model-family options as the
+shared agent API.
+
+```json
+{
+  "context": {"experiment_id":"experiment:study", "run_id":"run:1", "objective":"Estimate treatment effects"},
+  "model_kind":"lmm",
+  "formula":"y ~ treatment + x + (1 | subject)",
+  "data_path":"study.csv",
+  "reml":false
+}
+```
+
+The result contains context, a model resource with its FitSummary, and provenance:
+adapter/core/engine versions, exact captured CSV digest and length, effective model
+configuration, convergence, and activity timestamps. Missing experiment IDs become
+UUID URNs. Input bytes and the parsed frame are retained at fitting; later operations
+use that frame even if the source path changes or disappears.
+
+### Assess the model
+
+```json
+{
+  "fit_id":"<fit_id>",
+  "confidence":{"method":"wald", "level":0.95},
+  "cross_validation":{"group_col":"subject", "n_splits":5, "seed":42},
+  "comparison_fit_id":"<optional second fit_id>"
+}
+```
+
+Diagnostics and confidence intervals are always included. Confidence defaults to
+95% Wald intervals; optional parameters select fixed-effect names. Profile intervals
+support LMM/GLMM. Optional grouped CV supports LMM/GLMM. Optional likelihood-ratio
+comparison requires compatible mixed models fit with ML, from the same experiment
+and captured dataset. Both model resource URIs are recorded as inputs. Inspect
+convergence and CV all_converged fields when interpreting results.
+
+### Infer marginal effects
+
+```json
+{
+  "fit_id":"<fit_id>",
+  "terms":["treatment"],
+  "by":["sex"],
+  "at":{"age":40.0},
+  "weights":"equal",
+  "ddf_method":"auto",
+  "level":0.95,
+  "comparisons":true,
+  "adjust":"holm"
+}
+```
+
+LM/LMM only. Target and conditioning factors must be distinct fitted categorical
+factors; multiple terms define interaction cells. Omitted numeric references use
+sample means. Equal/proportional nuisance weights and asymptotic/residual (LM)/
+Satterthwaite/Kenward-Roger (LMM) inference follow the shared core. Auto selects
+residual df for LM and Satterthwaite for LMM. Holm is the default pairwise adjustment;
+Bonferroni, Tukey, and none are available. Comparisons can be omitted. Adjustment
+families remain separate within each conditioning stratum. Mean intervals are pointwise;
+pairwise output contains raw/adjusted p-values rather than simultaneous intervals.
+GLMM/NLMM marginal grids and grids with offsets are unsupported by this engine.
+
+### Retrieve and export
+
+resources/list lists fitted-model and analysis resources. resources/read retrieves
+the complete original envelope by its lme-rs URI. Analysis resources inherit their
+model's context and identify input resources, dataset digests, parameters, versions,
+and activity times. Resource documents are immutable within the session.
+
+```json
+{"experiment_id":"experiment:study", "include_data":true}
+```
+
+export_experiment returns an lme-rs.scp.export/v1 JSON bundle containing linked
+resources and deduplicated dataset digests. Exact captured UTF-8 CSV text is included
+only when requested; otherwise the export contains metadata/results. Save the returned
+bundle through the client. It preserves the scientific record across server restarts;
+it does not serialize native fitted objects or restore live fit handles. Embedded data
+is limited to 32 MiB total.
+
+forget_resource accepts a resource URI and removes it and all derived descendants.
+Forgetting a fitted model releases its core fit, captured data, and catalog capacity.
+Running analyses cannot publish results after their input resource is forgotten.
+
+## Execution and limits
+
+Wire workflows run on blocking workers outside the transport runtime. At most two
+workflows run concurrently; excess calls return an isError busy result for retry.
+Up to 64 scientific resources are retained. CSV inputs are limited to 256 MiB.
+The core limits CV to 2–100 folds and 1–4 explicit engine workers (default one),
+AGQ to 1–25, and marginal grids to 128 target/conditioning cells (4096 full grid rows).
+Experiment/run IDs are limited to 4096 bytes and objectives to 16384 bytes.
+
+Standard notifications/cancelled discards an undelivered workflow result. A running
+numerical computation drains while holding its worker slot; newly created fits/results
+are cleaned afterward. Previously delivered input models remain available. Cancelling
+an explicit forget_resource operation may still complete its requested deletion.
+Resources, snapshots, and fit handles are process-local and clear on restart. There
+is no automatic persistence, hub registration, network transport, or authentication
+in this local stdio release.
+
+Known workflow failures use standard isError tool results. Unknown protocol methods
+and resources use JSON-RPC errors. The pinned official client's RPC-error exception
+path has an upstream naming defect; see CONTRIBUTING.md for the tested boundary.
+
+## Development and validation
+
+Run task ci and task preflight. Rust tests cover the scientific workflow, exports,
+experiment isolation, cancellation, and lifecycle. The shared core compares marginal
+inference with independent R emmeans/lmerTest references. Windows/Linux CI also drives
+the real executable through unmodified official SCP client source pinned to
+cea5398564032aea65a78e246d06c30ae945e03f.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [RELEASING.md](RELEASING.md), and
+[CHANGELOG.md](CHANGELOG.md). The direct library example remains available:
 
 ```powershell
 cargo run --release --example fit_model -- C:\path\to\sleepstudy.csv
 ```
-
-## Development
-
-```powershell
-cargo fmt --check
-cargo clippy --all-targets --locked -- -D warnings
-cargo test --locked
-```
-
-## Scope after the harness
-
-Next operations should be shaped as scientific workflows with the same context/provenance
-contract: prediction, model comparison, confidence intervals, bootstrap, and grouped
-cross-validation. They should continue to call `lme-rs-agent`, never reimplement statistics.
 
 ## License
 

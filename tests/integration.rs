@@ -24,12 +24,15 @@ fn receive(stdout: &mut BufReader<ChildStdout>) -> Value {
 }
 
 fn spawn_server() -> (Child, ChildStdin, BufReader<ChildStdout>) {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_lme-rs-scp"))
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .expect("spawn lme-rs-scp");
+    let mut child = Command::new(
+        std::env::var_os("LME_SCP_TEST_BINARY")
+            .unwrap_or_else(|| env!("CARGO_BIN_EXE_lme-rs-scp").into()),
+    )
+    .stdin(Stdio::piped())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::inherit())
+    .spawn()
+    .expect("spawn lme-rs-scp");
     let stdin = child.stdin.take().expect("child stdin");
     let stdout = BufReader::new(child.stdout.take().expect("child stdout"));
     (child, stdin, stdout)
@@ -66,8 +69,8 @@ fn scp_stdio_fit_workflow_returns_context_resource_and_provenance() {
     );
     let tools = receive(&mut stdout);
     let listed = tools["result"]["tools"].as_array().expect("tool array");
-    assert_eq!(listed.len(), 1, "the harness should expose one workflow");
-    assert_eq!(listed[0]["name"], "fit_model");
+    assert_eq!(listed.len(), 5, "the adapter exposes scientific workflows");
+    assert!(listed.iter().any(|tool| tool["name"] == "fit_model"));
 
     send(
         &mut stdin,
@@ -97,7 +100,7 @@ fn scp_stdio_fit_workflow_returns_context_resource_and_provenance() {
     assert_eq!(result["resource"]["summary"]["model_kind"], "lmm");
     assert_eq!(result["resource"]["summary"]["num_obs"], 180);
     assert_eq!(result["provenance"]["engine"]["name"], "lme-rs");
-    assert_eq!(result["provenance"]["engine"]["version"], "0.2.2");
+    assert_eq!(result["provenance"]["engine"]["version"], "0.2.6");
     assert_eq!(result["provenance"]["outcome"]["converged"], true);
     assert_eq!(
         result["provenance"]["dataset"]["sha256"]

@@ -1,0 +1,48 @@
+name: CI
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rust:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: OpenBLAS
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libopenblas-dev
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            target
+          key: ${{ runner.os }}-scp-${{ hashFiles('Cargo.lock') }}
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo check --all-targets --locked
+      - run: cargo test --locked
+      - name: Official SCP client source
+        uses: actions/checkout@v4
+        with:
+          repository: InternScience/scp
+          ref: cea5398564032aea65a78e246d06c30ae945e03f
+          path: .compat/scp-upstream
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r tests/requirements-scp-client.txt
+      - run: python -m pip install --no-deps .compat/scp-upstream
+      - name: Official SCP client interoperability
+        run: python tests/scp_client.py --source .compat/scp-upstream --binary target/debug/lme-rs-scp${{ runner.os == 'Windows' && '.exe' || '' }}
+      - run: cargo package --locked

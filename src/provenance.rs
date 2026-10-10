@@ -1,12 +1,11 @@
 //! Provenance records for SCP scientific results.
 
 use std::collections::BTreeMap;
-use std::fs::File;
-use std::io::{self, Read};
-use std::path::Path;
 
 use chrono::{DateTime, Utc};
-use lme_rs_agent::{FitModelRequest, FitSummary, ModelKind, ENGINE_NAME, ENGINE_VERSION};
+use lme_rs_agent::{
+    DatasetSnapshot, FitModelRequest, FitSummary, ModelKind, ENGINE_NAME, ENGINE_VERSION,
+};
 use schemars::JsonSchema;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -19,7 +18,7 @@ pub struct SoftwareProvenance {
 }
 
 /// Content-addressed source dataset used by the model fit.
-#[derive(Debug, Clone, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct DatasetProvenance {
     pub path: String,
     pub media_type: String,
@@ -60,6 +59,7 @@ pub struct FitActivity {
 pub struct ModelProvenance {
     pub schema_version: String,
     pub adapter: SoftwareProvenance,
+    pub agent: SoftwareProvenance,
     pub engine: SoftwareProvenance,
     pub dataset: DatasetProvenance,
     pub configuration: FitConfiguration,
@@ -73,9 +73,10 @@ impl ModelProvenance {
         summary: &FitSummary,
         started_at: DateTime<Utc>,
         completed_at: DateTime<Utc>,
-    ) -> io::Result<Self> {
-        let dataset = hash_dataset(Path::new(&summary.data_path))?;
-        Ok(Self {
+        snapshot: &DatasetSnapshot,
+    ) -> Self {
+        let dataset = dataset_provenance(snapshot);
+        Self {
             schema_version: "lme-rs.scp.provenance/v1".to_string(),
             adapter: SoftwareProvenance {
                 name: env!("CARGO_PKG_NAME").to_string(),
@@ -84,6 +85,10 @@ impl ModelProvenance {
             engine: SoftwareProvenance {
                 name: ENGINE_NAME.to_string(),
                 version: ENGINE_VERSION.to_string(),
+            },
+            agent: SoftwareProvenance {
+                name: "lme-rs-agent".into(),
+                version: lme_rs_agent::AGENT_VERSION.into(),
             },
             dataset,
             configuration: FitConfiguration {
@@ -105,27 +110,15 @@ impl ModelProvenance {
                 started_at,
                 completed_at,
             },
-        })
+        }
     }
 }
 
-fn hash_dataset(path: &Path) -> io::Result<DatasetProvenance> {
-    let mut file = File::open(path)?;
-    let size_bytes = file.metadata()?.len();
-    let mut digest = Sha256::new();
-    let mut buffer = [0_u8; 64 * 1024];
-    loop {
-        let read = file.read(&mut buffer)?;
-        if read == 0 {
-            break;
-        }
-        digest.update(&buffer[..read]);
-    }
-
-    Ok(DatasetProvenance {
-        path: path.display().to_string(),
+pub(crate) fn dataset_provenance(snapshot: &DatasetSnapshot) -> DatasetProvenance {
+    DatasetProvenance {
+        path: snapshot.path.display().to_string(),
         media_type: "text/csv".to_string(),
-        sha256: format!("{:x}", digest.finalize()),
-        size_bytes,
-    })
+        sha256: format!("{:x}", Sha256::digest(snapshot.bytes())),
+        size_bytes: snapshot.bytes().len() as u64,
+    }
 }

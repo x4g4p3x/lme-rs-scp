@@ -1,6 +1,6 @@
 [package]
 name = "lme-rs-scp"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Martin Huck <x4g4p3x@users.noreply.github.com>"]
 description = "Science Context Protocol server for lme-rs mixed-effects models"
@@ -17,8 +17,8 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
-lme-rs-agent = { version = "0.1.0", path = "../lme-rs-agent" }
-rmcp = { version = "2.2", features = ["server", "transport-io"] }
+lme-rs-agent = "=0.2.0"
+rmcp = { version = "3.5.1", features = ["server", "transport-io"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -26,6 +26,9 @@ sha2 = "0.10"
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "io-std", "io-util"] }
 uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+rmcp = { version = "3.5.1", features = ["client", "transport-child-process"] }
 
 [profile.test]
 inherits = "dev"
