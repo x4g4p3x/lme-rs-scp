@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 - 2026-10-11
+
+- Align the published dependency chain to lme-rs-agent 0.2.1 and lme-rs 0.2.7.
+- Verify the new engine and shared-core versions in Rust and official-client provenance tests.
+
+
 ## 0.2.0 - 2026-10-10
 
 - Use published lme-rs-agent 0.2.0 and pinned lme-rs 0.2.6; upgrade rmcp to 3.5.1.

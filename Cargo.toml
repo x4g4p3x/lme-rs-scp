@@ -1,6 +1,6 @@
 [package]
 name = "lme-rs-scp"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["Martin Huck <x4g4p3x@users.noreply.github.com>"]
 description = "Science Context Protocol server for lme-rs mixed-effects models"
@@ -17,7 +17,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
-lme-rs-agent = "=0.2.0"
+lme-rs-agent = "=0.2.1"
 rmcp = { version = "3.5.1", features = ["server", "transport-io"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }

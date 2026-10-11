@@ -12,14 +12,14 @@ fit_model -> assess_model -> infer_marginals -> export_experiment
      +------------+---------------+-> retrievable resources + linked provenance
 ```
 
-Statistical algorithms stay in lme-rs. This release uses lme-rs-agent 0.2.0 and the
-published lme-rs 0.2.6 engine. The executable requires no Python. The compatibility
+Statistical algorithms stay in lme-rs. This release uses lme-rs-agent 0.2.1 and the
+published lme-rs 0.2.7 engine. The executable requires no Python. The compatibility
 test uses the official Python SCP client at a pinned revision.
 
 ## Install and run
 
 ```powershell
-cargo install lme-rs-scp --version 0.2.0 --locked
+cargo install lme-rs-scp --version 0.2.1 --locked
 $env:LME_DATA_ROOT = "C:\path\to\csv-data"
 lme-rs-scp
 ```

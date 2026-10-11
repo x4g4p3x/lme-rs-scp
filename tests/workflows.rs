@@ -35,7 +35,7 @@ fn complete_workflow_uses_captured_data_and_exports_linked_results() {
         format!("{:x}", Sha256::digest(bytes))
     );
     assert_eq!(full.provenance.dataset.size_bytes, bytes.len() as u64);
-    assert_eq!(full.provenance.agent.version, "0.2.0");
+    assert_eq!(full.provenance.agent.version, "0.2.1");
     std::fs::remove_file(&path).unwrap();
     let assessed = server.assess_model(serde_json::from_value(json!({"fit_id":full.resource.summary.fit_id,"comparison_fit_id":reduced.resource.summary.fit_id,"cross_validation":{"group_col":"subject","n_splits":2,"seed":42}})).unwrap()).unwrap();
     assert_eq!(assessed.context, full.context);

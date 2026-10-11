@@ -1,7 +1,7 @@
 # Releasing
 
-Publish dependencies first: lme-rs 0.2.6, then lme-rs-agent 0.2.0, then this adapter.
-The minor core version accounts for the new captured-data fields on public CachedFit.
+Publish dependencies first: lme-rs 0.2.7, then lme-rs-agent 0.2.1, then this adapter.
+Core 0.2.0 introduced captured-data fields on public CachedFit; 0.2.1 retains them.
 
 1. Remove sibling paths/patches and resolve the registry lockfile.
 2. Run `task preflight`, the official SCP client test, and `cargo publish --dry-run --locked`.

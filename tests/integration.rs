@@ -100,7 +100,7 @@ fn scp_stdio_fit_workflow_returns_context_resource_and_provenance() {
     assert_eq!(result["resource"]["summary"]["model_kind"], "lmm");
     assert_eq!(result["resource"]["summary"]["num_obs"], 180);
     assert_eq!(result["provenance"]["engine"]["name"], "lme-rs");
-    assert_eq!(result["provenance"]["engine"]["version"], "0.2.6");
+    assert_eq!(result["provenance"]["engine"]["version"], "0.2.7");
     assert_eq!(result["provenance"]["outcome"]["converged"], true);
     assert_eq!(
         result["provenance"]["dataset"]["sha256"]

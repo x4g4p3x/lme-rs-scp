@@ -41,8 +41,8 @@ async def main():
                 assert {t.name for t in tools.tools} == {"fit_model","assess_model","infer_marginals","export_experiment","forget_resource"}
                 fitted = document(await session.call_tool("fit_model", {"model_kind":"lmm","formula":"y ~ A * B + x + (1 | subject)","data_path":"marginal.csv","reml":False,"context":{"experiment_id":"official-client","run_id":"run:1","objective":"Assess treatment"}}))
                 model_id = fitted["resource"]["summary"]["fit_id"]
-                assert fitted["provenance"]["engine"]["version"] == "0.2.6"
-                assert fitted["provenance"]["agent"]["version"] == "0.2.0"
+                assert fitted["provenance"]["engine"]["version"] == "0.2.7"
+                assert fitted["provenance"]["agent"]["version"] == "0.2.1"
                 listed = await session.list_resources()
                 assert fitted["resource"]["uri"] in {str(r.uri) for r in listed.resources}
                 loaded = await session.read_resource(AnyUrl(fitted["resource"]["uri"]))
